@@ -21,13 +21,41 @@
    2. 激活鼠标：鼠标fifo，鼠标控制电路，鼠标中断，鼠标控制
 6. 内存管理
    1. 检查内存
+   1. 内存分配和释放
+7. 图层叠加处理
+   1. 判断范围，更新buf
+8. 消除闪烁
+9. 设置定时器
+10. 修改分辨率
+11. 键盘输入
+12. 多任务
+    1. 任务切换
+    2. 任务优先级
+    3. 任务level
+
+13. 命令行窗口
+    1. 绘制窗口
+    2. 字符串输入
+    3. 大写小写字母，符号数字的输入
+    4. 键盘指示灯控制
+    5. 换行和滚动
+    6. 写命令指令
+
+14. 读取文件信息
+    1. 处理特殊标识符
+    2. 对FAT的支持
+
 
 ## 执行流程
 
-1. 重新创建GDT，IDT
-2. 初始化PIC
+1. 重新创建全局段号记录表GDT，中断记录表IDT
+2. 初始化可编程中断控制器PIC
 3. 执行 io_sti()
+3. 初始化缓冲区
+3. 初始化图层信息
 4. 初始化调色板和画面
+4. 初始化鼠标显示
+4. 初始化定时器
 
 ## CPU
 
@@ -313,3 +341,282 @@ struct KEYBUF{
   - 内存释放：表里增加一条可用空间信息，检查这段空间能否和相邻空间合并，能合并，将他们归纳为1条
   - 占用内存较小，大块内存分配释放迅速
   - 管理较为复杂，当空间管理表用完，先割舍小块内存，等到表有空余再放入；或者切换回上一种方法
+
+### 分配内存技巧
+
+~~~c
+//二进制，16进制
+	//以0x1000为单位向下取整
+	i = i & 0xfffff000;
+
+	//以0x1000为单位向上取整
+	i = (i + 0xfff) & 0xfffff000;
+
+
+//10进制
+	//以x为单位向下取整
+	i = (i/x)*x;
+	//or
+	i = i - (i % x);
+~~~
+
+- 因为与运算比除运算快，所以 使用 2 的倍数取整分配内存，速度要快于其他数字
+
+## 图层管理
+
+~~~c
+#define MAX_SHEETS 256	//最大管理图层数
+struct SHTCTL{
+  unsigned char *vram;//vram地址
+  int xsize,ysize,top;//vram大小，最上面图层的高度
+   struct SHEET *sheets[MAX_SHEETS];//将sheet0按高度排序后放到这里
+   struct SHEET sheets0[MAX_SHEETS];//存放256个图层的信息
+};
+~~~
+
+### 提高叠加处理速度
+
+- 鼠标移动不该刷新整个画面，只需要刷新鼠标经过的地方
+
+~~~c
+for(遍历x方向)
+{
+    更新鼠标的x;
+    for(遍历y方向)
+    {
+        更新鼠标的y;
+        if(在鼠标的范围内)
+        {
+            update图层buf颜色信息;
+        }
+    }
+}
+~~~
+
+- 在图层上显示文字也不该刷新所有像素点，只需要刷新缓冲区的坐标像素即可；计算范围的时候应该遍历刷新范围即可（AABB包围盒）
+
+### 消除闪烁
+
+- 由于某一个地方刷新的时候，会从最后一个图层到最顶部的图层一 一开始刷新，这个顺序过程显示出来就会闪烁
+
+- 当图层移动可能导致下面图层露出来：从最下面开始刷新
+- 图层移动到的地方，旧的图层不需要刷新，最要刷新新来的和他之上的图层即可
+  - 鼠标是最高的层，需要一直刷新，可能会闪烁
+- 创建VRAM的ZbufferMAP
+
+## 定时器
+
+- 设定PIT（可编程间隔型定时器），每隔固定时间间隔产生一次中断给IRQ
+
+### 超时功能
+
+- 到一定时间提醒main执行任务
+
+~~~c
+struct TIMERCTL
+{
+    unsigned int count;//计数器个数
+    unsigned int timeout;//为0时往fifo发送data，提醒
+    struct FIFO8 *fifo;
+    unsigned char data;
+};
+~~~
+
+### 多个定时器
+
+~~~c
+#define MAX_TIMER 500
+struct TIMER
+{
+    struct TIMER *next;
+	unsigned int timeout,flags;
+    struct FIFO32 *fifo;
+    int data;
+}
+
+struct TIMERCTL
+{
+	unsigned int count,next;
+    //next记录下一个最近任务的计数器，避免每次都遍历一次 //0.3s->5s->8s
+    struct TIMER *t0;
+    struct TIMER timers0[MAX_TIMER];//排好序放到timers里
+}
+~~~
+
+### 时刻调整程序
+
+- count最大0xffffffff，大概500天，超过这个数值就不能计数了
+- 可以设定一个定期调整时间的程序
+
+### 定时器优化
+
+- 数组队列，添加删除定时器需要整体移位，头始终不变
+- 链表队列，添加删除定时器不需要移位，但需要遍历找队列的头
+- 链表队列+哨兵，添加删除队列不需要移位且时可能找到队列的头
+
+## 分辨率
+
+- VEB画面模式号码
+
+<img src="README.assets/B631A3774E53D8EC7705DCC45A61CB60.png" alt="img" style="zoom:50%;" />
+
+## 键盘输入
+
+- 按下按键的数值 + 0x80 就是松开时候的数值
+
+
+
+## 多线程
+
+- 为了同时运行多个程序
+- 切换的间隔不能太小，否则太浪费资源，而且切换时间太长
+- 切换时，CPU会将所有寄存器的值全部写入内存，为了以后切换回这个程序时可以从中断的地方继续运行。然后从另一块内存读取数值到寄存器，这样就是一次切换
+- TSS（任务状态段）：包含
+  - 与任务设置相关的信息
+  - EIP（扩展指令指针寄存器）：记录下一条执行的指令在哪个地址的寄存器
+- JMP指令：
+  - 只改写EIP的模式称为near模式，同时改写EIP和CS的称为far模式
+  - JMP的目的地址段不是可执行的代码，是TSS的话，CPU会将这条指令认为**任务切换**，跳过去执行
+- 步骤
+
+~~~c
+//创建每个任务的tss
+struct TSS32 tss_a,tss_b;
+
+//向成员填上合适的参数
+tss_a.ldtr = 0;
+tss_a.iomap = 0x40000000;
+tss_b.ldtr = 0;
+tss_b.iomap = 0x40000000;
+
+//在GDT中定义
+struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR*)ADR_GDT;
+set_segmdesc(gdt + 3,103,(int)&tss_a,AR_TSS32);//gdt的3号，段长103字节
+set_segmdesc(gdt + 4,103,(int)&tss_b,AR_TSS32);
+
+//TR寄存器，让CPU记住当前执行的任务，切换任务他也更新，赋值时 编号*8
+load_tr(3*8);
+//ARM
+_load_tr:
+	LTR		[ESP+4]
+    RET
+        
+//切换任务
+_taskswitch4://跳到4
+	JMP		4*8:0
+    RET
+        
+_taskswitch3://跳到3
+	JMP		3*8:0
+    RET
+//写成整体函数
+_farjmp:
+	JMP		FAR[ESP+4]
+    RET
+
+//两个任务中设置切换间隔为0.02s
+        
+//把需要共享的变量存到内存，谁需要谁访问
+//task_a
+*((*int)0x0fec) = (int) sht_back;
+//task_b
+sht_back = (struct SHEET*)*((int*)0x0fec);
+
+//不能让程序知道自己在被来回切换
+//将切换封装在某个函数里
+~~~
+
+### 任务管理自动化
+
+~~~cpp
+struct TASK
+{
+    int sel,flags;//sel存放GDT编号
+    struct TSS32 tss;
+};
+
+struct TASKCTL
+{
+  int running;//正在运行的任务数量
+  int now;//当前运行的任务号
+    struct TASK *tasks[MAX_TASKS];
+    struct TASK tasks0[MAX_TASKS];
+};
+~~~
+
+
+
+### 任务的休眠和唤醒
+
+- 当一个线程空闲的时候将其休眠，将cpu留给其他线程使用，提高效率
+- 不需要时将进程休眠，需要时将她唤醒
+
+### 设定任务的优先级
+
+- 体现在给不同任务分配的切换间隔上，优先级数字越大，单次分配的时间越长
+
+~~~c
+struct TASK
+{
+    int sel,flags;//sel存放GDT编号
+    int priority;//优先级
+    struct TSS32 tss;
+};
+~~~
+
+- 设定优先级后在设定，切换定时器时使用
+- 一般将0代表不改变优先级，用于休眠后的唤醒 task_run(fifo->task,0);
+
+- 将键盘鼠标，网络处理，播放音乐的输入设为高优先级，积极响应用户操作，然后给这个任务分配休眠唤醒机制，当没有输入的时候这个任务从tasks中删除，CPU全部分给其他任务使用
+
+### 处理多个高优先级任务
+
+- 创建几个TASKCTL or 在TASKCTL中创建多个tasks[]
+
+<img src="README.assets/D3BDFF9F07E2CDD26B2DCFF5B4027FF6.png" alt="img" style="zoom:67%;" />
+
+- 只要上层的TASKCTL中有任务，就完全忽略后面的TASKCTL
+- 当一层的任务都执行完，才轮到下一层执行
+- 当高的level有新任务，必须马上切换回去执行
+
+~~~c
+#define MAX_TASKS_LV 100
+#define MAX_TASKLEVELS 10
+
+struct TASK
+{
+    int sel,flags;	//sel放GDT编号
+    int level,priority;	//level记录自己的层级，priority记录优先级
+    struct TSS32 tss;
+};
+
+struct TASKLEVEL
+{
+    int running;//记录运行的任务数
+    int now;//记录当前运行的是哪个任务
+    struct TASK *tasks[MAX_TASKS_LV];
+};
+
+struct TASKCTL
+{
+    int now_lv;//记录现在活动的level
+    char lv_change;//在下次切换时是否需要改变level
+    struct TASKLEVEL level[MAX_TASKLEVELS];
+    struct TASK tasks0[MAX_TASKS];
+};
+~~~
+
+- 当所有level都没有任务，就执行HTL休眠
+
+## 指令
+
+- mem查看内存
+- cls清屏
+- dir显示文件信息
+- type 文件名.格式名
+
+## FAT（文件分配表）
+
+- 记录文件在磁盘的存放位置
+
+- 文件在磁盘没有存放在连续的扇区，这种情况被称为“磁盘碎片”。
