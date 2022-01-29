@@ -1,26 +1,26 @@
 /* asmhead.nas */
 struct BOOTINFO { /* 0x0ff0-0x0fff */
-	char cyls; /* ƒu[ƒgƒZƒNƒ^‚Í‚Ç‚±‚Ü‚ÅƒfƒBƒXƒN‚ğ“Ç‚ñ‚¾‚Ì‚© */
-	char leds; /* ƒu[ƒg‚ÌƒL[ƒ{[ƒh‚ÌLED‚Ìó‘Ô */
-	char vmode; /* ƒrƒfƒIƒ‚[ƒh  ‰½ƒrƒbƒgƒJƒ‰[‚© */
+	char cyls; /* å¯åŠ¨åŒºè¯»ç£ç›˜è¯»åˆ°æ­¤ä¸ºæ­¢ */
+	char leds; /* å¯åŠ¨æ—¶é”®ç›˜çš„LEDçš„çŠ¶æ€ */
+	char vmode; /* æ˜¾å¡æ¨¡å¼ä¸ºå¤šå°‘ä½å½©è‰² */
 	char reserve;
-	short scrnx, scrny; /* ‰æ–Ê‰ğ‘œ“x */
+	short scrnx, scrny; /* ç”»é¢åˆ†è¾¨ç‡ */
 	char *vram;
 };
 #define ADR_BOOTINFO	0x00000ff0
 #define ADR_DISKIMG		0x00100000
 
 /* naskfunc.nas */
-void io_hlt(void);
-void io_cli(void);
-void io_sti(void);
+void io_hlt(void);//ä½¿ç¨‹åºåœä½è¿è¡Œ
+void io_cli(void);//å‘½ä»¤è¡Œæ¥å£
+void io_sti(void);//ä¸­æ–­
 void io_stihlt(void);
 int io_in8(int port);
 void io_out8(int port, int data);
 int io_load_eflags(void);
 void io_store_eflags(int eflags);
-void load_gdtr(int limit, int addr);
-void load_idtr(int limit, int addr);
+void load_gdtr(int limit, int addr);//å…¨å±€æè¿°è¡¨
+void load_idtr(int limit, int addr);//ä¸­æ–­æè¿°è¡¨
 int load_cr0(void);
 void store_cr0(int cr0);
 void load_tr(int tr);
@@ -57,6 +57,7 @@ void putfonts8_asc(char *vram, int xsize, int x, int y, char c, unsigned char *s
 void init_mouse_cursor8(char *mouse, char bc);
 void putblock8_8(char *vram, int vxsize, int pxsize,
 	int pysize, int px0, int py0, char *buf, int bxsize);
+//é¢œè‰²
 #define COL8_000000		0
 #define COL8_FF0000		1
 #define COL8_00FF00		2
@@ -124,7 +125,7 @@ void init_keyboard(struct FIFO32 *fifo, int data0);
 
 /* mouse.c */
 struct MOUSE_DEC {
-	unsigned char buf[3], phase;
+	unsigned char buf[3], phase;//lcr
 	int x, y, btn;
 };
 void inthandler2c(int *esp);
@@ -132,12 +133,12 @@ void enable_mouse(struct FIFO32 *fifo, int data0, struct MOUSE_DEC *mdec);
 int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat);
 
 /* memory.c */
-#define MEMMAN_FREES		4090	/* ‚±‚ê‚Å–ñ32KB */
+#define MEMMAN_FREES		4090	
 #define MEMMAN_ADDR			0x003c0000
-struct FREEINFO {	/* ‚ ‚«î•ñ */
+struct FREEINFO {	
 	unsigned int addr, size;
 };
-struct MEMMAN {		/* ƒƒ‚ƒŠŠÇ— */
+struct MEMMAN {	
 	int frees, maxfrees, lostsize, losts;
 	struct FREEINFO free[MEMMAN_FREES];
 };
@@ -196,8 +197,8 @@ int timer_cancel(struct TIMER *timer);
 void timer_cancelall(struct FIFO32 *fifo);
 
 /* mtask.c */
-#define MAX_TASKS		1000	/* Å‘åƒ^ƒXƒN” */
-#define TASK_GDT0		3		/* TSS‚ğGDT‚Ì‰½”Ô‚©‚çŠ„‚è“–‚Ä‚é‚Ì‚© */
+#define MAX_TASKS 1000	/*æœ€å¤§ä»»åŠ¡æ•°é‡*/
+#define TASK_GDT0 3			/*å®šä¹‰ä»GDTçš„å‡ å·å¼€å§‹åˆ†é…ç»™TSS */
 #define MAX_TASKS_LV	100
 #define MAX_TASKLEVELS	10
 struct TSS32 {
@@ -207,8 +208,8 @@ struct TSS32 {
 	int ldtr, iomap;
 };
 struct TASK {
-	int sel, flags; /* sel‚ÍGDT‚Ì”Ô†‚Ì‚±‚Æ */
-	int level, priority;
+	int sel, flags;		/* selç”¨æ¥å­˜æ”¾GDTçš„ç¼–å·*/
+	int level, priority; /* ä¼˜å…ˆçº§ */
 	struct FIFO32 fifo;
 	struct TSS32 tss;
 	struct SEGMENT_DESCRIPTOR ldt[2];
@@ -220,13 +221,13 @@ struct TASK {
 	unsigned char langmode, langbyte1;
 };
 struct TASKLEVEL {
-	int running; /* “®ì‚µ‚Ä‚¢‚éƒ^ƒXƒN‚Ì” */
-	int now; /* Œ»İ“®ì‚µ‚Ä‚¢‚éƒ^ƒXƒN‚ª‚Ç‚ê‚¾‚©•ª‚©‚é‚æ‚¤‚É‚·‚é‚½‚ß‚Ì•Ï” */
+	int running; /*æ­£åœ¨è¿è¡Œçš„ä»»åŠ¡æ•°é‡*/
+	int now; /*è¿™ä¸ªå˜é‡ç”¨æ¥è®°å½•å½“å‰æ­£åœ¨è¿è¡Œçš„æ˜¯å“ªä¸ªä»»åŠ¡*/
 	struct TASK *tasks[MAX_TASKS_LV];
 };
 struct TASKCTL {
-	int now_lv; /* Œ»İ“®ì’†‚ÌƒŒƒxƒ‹ */
-	char lv_change; /* Ÿ‰ñƒ^ƒXƒNƒXƒCƒbƒ`‚Ì‚Æ‚«‚ÉAƒŒƒxƒ‹‚à•Ï‚¦‚½‚Ù‚¤‚ª‚¢‚¢‚©‚Ç‚¤‚© */
+	int now_lv; /*ç°åœ¨æ´»åŠ¨ä¸­çš„LEVEL */
+	char lv_change; /*åœ¨ä¸‹æ¬¡ä»»åŠ¡åˆ‡æ¢æ—¶æ˜¯å¦éœ€è¦æ”¹å˜LEVEL */
 	struct TASKLEVEL level[MAX_TASKLEVELS];
 	struct TASK tasks0[MAX_TASKS];
 };

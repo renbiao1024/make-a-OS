@@ -1,4 +1,4 @@
-/* ƒ}ƒEƒXŠÖŒW */
+/* é¼ æ ‡æ§åˆ¶ä»£ç  */
 
 #include "bootpack.h"
 
@@ -6,11 +6,11 @@ struct FIFO32 *mousefifo;
 int mousedata0;
 
 void inthandler2c(int *esp)
-/* PS/2ƒ}ƒEƒX‚©‚ç‚ÌŠ„‚è‚İ */
+/* æ¥è‡ªPS/2é¼ æ ‡çš„ä¸­æ–­ */
 {
 	int data;
-	io_out8(PIC1_OCW2, 0x64);	/* IRQ-12ó•tŠ®—¹‚ğPIC1‚É’Ê’m */
-	io_out8(PIC0_OCW2, 0x62);	/* IRQ-02ó•tŠ®—¹‚ğPIC0‚É’Ê’m */
+	io_out8(PIC1_OCW2, 0x64); /* æŠŠIRQ-12æ¥æ”¶ä¿¡å·ç»“æŸçš„ä¿¡æ¯é€šçŸ¥ç»™PIC1 */
+	io_out8(PIC0_OCW2, 0x62); /* æŠŠIRQ-02æ¥æ”¶ä¿¡å·ç»“æŸçš„ä¿¡æ¯é€šçŸ¥ç»™PIC0 */
 	data = io_in8(PORT_KEYDAT);
 	fifo32_put(mousefifo, data + mousedata0);
 	return;
@@ -21,45 +21,44 @@ void inthandler2c(int *esp)
 
 void enable_mouse(struct FIFO32 *fifo, int data0, struct MOUSE_DEC *mdec)
 {
-	/* ‘‚«‚İæ‚ÌFIFOƒoƒbƒtƒ@‚ğ‹L‰¯ */
+	/* å°†FIFOç¼“å†²åŒºçš„ä¿¡æ¯ä¿å­˜åˆ°å…¨å±€å˜é‡é‡Œ */
 	mousefifo = fifo;
 	mousedata0 = data0;
-	/* ƒ}ƒEƒX—LŒø */
+	/* é¼ æ ‡æœ‰æ•ˆ */
 	wait_KBC_sendready();
 	io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
 	wait_KBC_sendready();
 	io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
-	/* ‚¤‚Ü‚­‚¢‚­‚ÆACK(0xfa)‚ª‘—M‚³‚ê‚Ä‚­‚é */
-	mdec->phase = 0; /* ƒ}ƒEƒX‚Ì0xfa‚ğ‘Ò‚Á‚Ä‚¢‚é’iŠK */
+	/* é¡ºåˆ©çš„è¯ï¼ŒACK(0xfa)ä¼šè¢«å‘é€*/
+	mdec->phase = 0; /* ç­‰å¾…é¼ æ ‡çš„0xfaçš„é˜¶æ®µ*/
 	return;
 }
-
+//é¼ æ ‡è§£ç 
 int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat)
 {
 	if (mdec->phase == 0) {
-		/* ƒ}ƒEƒX‚Ì0xfa‚ğ‘Ò‚Á‚Ä‚¢‚é’iŠK */
+		/* ç­‰å¾…é¼ æ ‡çš„0xfaçš„é˜¶æ®µ */
 		if (dat == 0xfa) {
 			mdec->phase = 1;
 		}
 		return 0;
 	}
 	if (mdec->phase == 1) {
-		/* ƒ}ƒEƒX‚Ì1ƒoƒCƒg–Ú‚ğ‘Ò‚Á‚Ä‚¢‚é’iŠK */
+		/* ç­‰å¾…é¼ æ ‡ç¬¬ä¸€å­—èŠ‚çš„é˜¶æ®µ */
 		if ((dat & 0xc8) == 0x08) {
-			/* ³‚µ‚¢1ƒoƒCƒg–Ú‚¾‚Á‚½ */
 			mdec->buf[0] = dat;
 			mdec->phase = 2;
 		}
 		return 0;
 	}
 	if (mdec->phase == 2) {
-		/* ƒ}ƒEƒX‚Ì2ƒoƒCƒg–Ú‚ğ‘Ò‚Á‚Ä‚¢‚é’iŠK */
+		/* ç­‰å¾…é¼ æ ‡ç¬¬äºŒå­—èŠ‚çš„é˜¶æ®µ */
 		mdec->buf[1] = dat;
 		mdec->phase = 3;
 		return 0;
 	}
 	if (mdec->phase == 3) {
-		/* ƒ}ƒEƒX‚Ì3ƒoƒCƒg–Ú‚ğ‘Ò‚Á‚Ä‚¢‚é’iŠK */
+		/* ç­‰å¾…é¼ æ ‡ç¬¬äºŒå­—èŠ‚çš„é˜¶æ®µ */
 		mdec->buf[2] = dat;
 		mdec->phase = 1;
 		mdec->btn = mdec->buf[0] & 0x07;
@@ -71,8 +70,9 @@ int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat)
 		if ((mdec->buf[0] & 0x20) != 0) {
 			mdec->y |= 0xffffff00;
 		}
-		mdec->y = - mdec->y; /* ƒ}ƒEƒX‚Å‚Íy•ûŒü‚Ì•„†‚ª‰æ–Ê‚Æ”½‘Î */
+		mdec->y = - mdec->y; /* é¼ æ ‡çš„yæ–¹å‘ä¸ç”»é¢ç¬¦å·ç›¸å */  
 		return 1;
 	}
-	return -1; /* ‚±‚±‚É—ˆ‚é‚±‚Æ‚Í‚È‚¢‚Í‚¸ */
+	/* åº”è¯¥ä¸å¯èƒ½åˆ°è¿™é‡Œæ¥ */
+	return -1; 
 }
