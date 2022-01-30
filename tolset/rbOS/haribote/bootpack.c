@@ -12,20 +12,20 @@ void close_constask(struct TASK *task);
 
 void HariMain(void)
 {	
-	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;//引导信息结构体
+	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;//引导信息
 	struct SHTCTL *shtctl;//窗口信息
 	char s[40];
-	struct FIFO32 fifo, keycmd;
+	struct FIFO32 fifo, keycmd;//FIFO
 	int fifobuf[128], keycmd_buf[32];
 	int mx, my, i, new_mx = -1, new_my = 0, new_wx = 0x7fffffff, new_wy = 0;
 	unsigned int memtotal;
 	struct MOUSE_DEC mdec;//鼠标信息
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;//内存信息
 	unsigned char *buf_back, buf_mouse[256];
-	struct SHEET *sht_back, *sht_mouse;
-	struct TASK *task_a, *task;
+	struct SHEET *sht_back, *sht_mouse;//图层信息
+	struct TASK *task_a, *task;//任务信息
 	static char keytable0[0x80] = {
-		0,   0,   '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '^', 0x08, 0,
+		0,   0,   '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 0x08, 0,
 		'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '@', '[', 0x0a, 0, 'A', 'S',
 		'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', ':', 0,   0,   ']', 'Z', 'X', 'C', 'V',
 		'B', 'N', 'M', ',', '.', '/', 0,   '*', 0,   ' ', 0,   0,   0,   0,   0,   0,
@@ -35,7 +35,7 @@ void HariMain(void)
 		0,   0,   0,   0x5c, 0,  0,   0,   0,   0,   0,   0,   0,   0,   0x5c, 0,  0
 	};
 	static char keytable1[0x80] = {
-		0,   0,   '!', 0x22, '#', '$', '%', '&', 0x27, '(', ')', '~', '=', '~', 0x08, 0,
+		0,   0,   '!', 0x22, '#', '$', '%', '^', '&', 0x27, '(', ')', '_', '+', 0x08, 0,
 		'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '`', '{', 0x0a, 0, 'A', 'S',
 		'D', 'F', 'G', 'H', 'J', 'K', 'L', '+', '*', 0,   0,   '}', 'Z', 'X', 'C', 'V',
 		'B', 'N', 'M', '<', '>', '?', 0,   '*', 0,   ' ', 0,   0,   0,   0,   0,   0,
@@ -49,7 +49,7 @@ void HariMain(void)
 	struct SHEET *sht = 0, *key_win, *sht2;
 	int *fat;
 	unsigned char *nihongo;
-	struct FILEINFO *finfo;
+	struct FILEINFO *finfo;//文件信息
 	extern char hankaku[4096];
 
 	init_gdtidt();
@@ -69,13 +69,13 @@ void HariMain(void)
 	memman_free(memman, 0x00001000, 0x0009e000); /* 0x00001000 - 0x0009efff */
 	memman_free(memman, 0x00400000, memtotal - 0x00400000);
 
-	init_palette();
+	init_palette();//初始化调色板
 	shtctl = shtctl_init(memman, binfo->vram, binfo->scrnx, binfo->scrny);
 	task_a = task_init(memman);
 	fifo.task = task_a;
 	task_run(task_a, 1, 2);
 	*((int *) 0x0fe4) = (int) shtctl;
-	task_a->langmode = 0;
+	task_a->langmode = 0;//英语模式
 
 	/* sht_back */
 	sht_back  = sheet_alloc(shtctl);
@@ -105,7 +105,7 @@ void HariMain(void)
 	fifo32_put(&keycmd, KEYCMD_LED);
 	fifo32_put(&keycmd, key_leds);
 
-	/* 载入nihongo.fnt */
+	//载入日本文字字体
 	fat = (int *) memman_alloc_4k(memman, 4 * 2880);
 	file_readfat(fat, (unsigned char *) (ADR_DISKIMG + 0x000200));
 
@@ -125,7 +125,7 @@ void HariMain(void)
 	*((int *) 0x0fe8) = (int) nihongo;
 	memman_free_4k(memman, (int) fat, 4 * 2880);
 
-	for (;;) {
+	for (;;) {//键盘输入
 		if (fifo32_status(&keycmd) > 0 && keycmd_wait < 0) {
 			/* 如果存在向键盘控制器发送的数据，则发送它 */
 			keycmd_wait = fifo32_get(&keycmd);
